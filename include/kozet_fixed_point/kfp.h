@@ -203,11 +203,28 @@ namespace kfp {
     // Is I an integer?
     static_assert(std::numeric_limits<I>::is_integer,
       "I must be an integer type");
+    template<typename I2, size_t d2>
+    using HasIntegerBits = std::enable_if_t<(d2 < CHAR_BIT * sizeof(I2))>;
+    template<typename I2, size_t d2>
+    using HasNoIntegerBits = std::enable_if_t<(d2 >= CHAR_BIT * sizeof(I2)), int>;
     // Constructors
-    Fixed() : underlying(0) {}
-    Fixed(I value) : underlying(value << d) {}
-    Fixed(const F& value) : underlying(value.underlying) {}
-    static F raw(I underlying) {
+    constexpr Fixed() : underlying(0) {}
+    template<typename I2 = I, size_t d2 = d>
+    constexpr Fixed(I value, HasIntegerBits<I2, d2>* dummy = nullptr) : underlying(value << d) {}
+    template<typename I2 = I, size_t d2 = d>
+    constexpr Fixed(I value, HasNoIntegerBits<I2, d2>* dummy = nullptr) : underlying(0) {}
+    constexpr Fixed(const F& value) : underlying(value.underlying) {}
+    // Implicit cast from smaller type
+    template<typename I2, size_t d2>
+    constexpr Fixed(const Fixed<I2, d2>& other) {
+      static_assert(integralDigits() >= other.integralDigits(),
+        "Cannot implicitly cast into a type with fewer integral digits");
+      static_assert(fractionalBits() >= other.fractionalBits(),
+        "Cannot implicitly cast into a type with fewer fractional bits");
+      // How much left should we shift?
+      underlying = other.underlying << (fractionalBits() - other.fractionalBits());
+    }
+    constexpr static F raw(I underlying) {
       F ret;
       ret.underlying = underlying;
       return ret;
@@ -231,17 +248,21 @@ namespace kfp {
       underlying = i << d;
       return *this;
     }
-#define DEF_OP(o) \
+#define DEF_OP_BOILERPLATE(o) \
       template<typename X> \
       F operator o(const X& other) const { \
         F ret = *this; \
         ret o##= other; \
         return ret; \
-      } \
+      }
+#define DEF_OP_BOILERPLATE2(o) \
+      DEF_OP_BOILERPLATE(o) \
       F& operator o##=(const I& other) { \
-        *this o##= raw(other); \
+        *this o##= F(other); \
         return *this; \
-      } \
+      }
+#define DEF_OP(o) \
+      DEF_OP_BOILERPLATE2(o) \
       F& operator o##=(const F& other)
     // end define
     DEF_OP(+) {
@@ -252,7 +273,9 @@ namespace kfp {
       underlying -= other.underlying;
       return *this;
     }
-    DEF_OP(*) {
+    DEF_OP_BOILERPLATE2(*)
+    template<size_t d2>
+    F& operator*=(const Fixed<I, d2>& other) {
       // TODO: should we support heterogenous types for this?
       auto p = mulOverflow(underlying, other.underlying);
       underlying =
@@ -267,22 +290,44 @@ namespace kfp {
       underlying = divOverflow(ah, al, other.underlying);
       return *this;
     }
+    DEF_OP_BOILERPLATE(<<)
+    F& operator<<=(int shift) {
+      underlying <<= shift;
+      return *this;
+    }
+    DEF_OP_BOILERPLATE(>>)
+    F& operator>>=(int shift) {
+      underlying >>= shift;
+      return *this;
+    }
     F operator-() const {
       F ret = *this;
       ret.underlying = -ret.underlying;
       return ret;
     }
 #undef DEF_OP
+#undef DEF_OP_BOILERPLATE
+#undef DEF_OP_BOILERPLATE2
     // Other functions
     I floor() const {
       return underlying >> d;
     }
     double toDouble() const {
-      return ((double) underlying) * pow(0.5, d);
+      return ((double) underlying) / exp2(d);
     }
   };
   // Relational operators
 #define DEF_RELATION(o) \
+    template<typename I, size_t d> \
+    bool operator o(const Fixed<I, d>& a, I b) { \
+      return (b >> Fixed<I, d>::integralBits()) == 0 && \
+        a.underlying o (b << d); \
+    } \
+    template<typename I, size_t d> \
+    bool operator o(I a, const Fixed<I, d>& b) { \
+      return (a >> Fixed<I, d>::integralBits()) == 0 && \
+        (a << d) o b.underlying; \
+    } \
     template<typename I, size_t d> \
     bool operator o(const Fixed<I, d>& a, const Fixed<I, d>& b) { \
       return a.underlying o b.underlying; \
@@ -301,6 +346,9 @@ namespace kfp {
   }
   using s16_16 = Fixed<int32_t, 16>;
   using u16_16 = Fixed<uint32_t, 16>;
+  using s2_30 = Fixed<int32_t, 30>;
+  using s34_30 = Fixed<int64_t, 30>;
+  using frac32 = Fixed<uint32_t, 32>;
 }
 
 template<typename I, size_t d>
