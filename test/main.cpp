@@ -51,6 +51,7 @@ void testMulOverflow() {
 void testBasic() {
   kfp::Fixed<int32_t, 16> k = 3;
   auto m = kfp::Fixed<int32_t, 16>::raw(5835);
+  kfp::Fixed<int32_t, 16> x = 2457;
   std::cout << "3 = " << k << "\n";
   std::cout << "5835/65536 = " << m << "\n";
   std::cout << k << " + " << m << " = " << (k + m) << "\n";
@@ -62,6 +63,7 @@ void testBasic() {
   std::cout << "-" << k << " = " << -k << "\n";
   std::cout << "(-m) >> 4 = " << ((-m) >> 4) << "\n";
   std::cout << "-(m >> 4) = " << -(m >> 4) << "\n";
+  std::cout << x << " / " << m << " = " << (x / m) << "\n";
 }
 
 void testTrig() {

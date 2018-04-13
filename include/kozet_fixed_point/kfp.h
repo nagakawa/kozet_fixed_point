@@ -15,10 +15,27 @@
 namespace kfp {
   // Check for prescence of __int128
 #ifdef __SIZEOF_INT128__
-#define MAX_NATIVE_BITS 64
+  using int128_t = __int128_t;
+  using uint128_t = __uint128_t;
+  #define MAX_NATIVE_BITS 64
 #else
-#define MAX_NATIVE_BITS 32
+  // Use a library that provides a 128-bit int type with the usual operations
+  // and define int128_t and uint128_t to the signed/unsigned variants respectively
+  // if not done already.
+  #define MAX_NATIVE_BITS 32
 #endif
+  template<typename T>
+  struct DTI;
+  template<> struct DTI<int8_t> { typedef int_fast16_t type; };
+  template<> struct DTI<int16_t> { typedef int_fast32_t type; };
+  template<> struct DTI<int32_t> { typedef int_fast64_t type; };
+  template<> struct DTI<int64_t> { typedef int128_t type; };
+  template<> struct DTI<uint8_t> { typedef uint_fast16_t type; };
+  template<> struct DTI<uint16_t> { typedef uint_fast32_t type; };
+  template<> struct DTI<uint32_t> { typedef uint_fast64_t type; };
+  template<> struct DTI<uint64_t> { typedef uint128_t type; };
+  template<typename T>
+  using DoubleType = typename DTI<T>::type;
   /*
     The following functions are defined:
     std::pair<I, U> mulOverflow(I a, I b);
@@ -276,18 +293,13 @@ namespace kfp {
     DEF_OP_BOILERPLATE2(*)
     template<size_t d2>
     F& operator*=(const Fixed<I, d2>& other) {
-      // TODO: should we support heterogenous types for this?
-      auto p = mulOverflow(underlying, other.underlying);
-      underlying =
-        (p.second >> other.fractionalBits()) |
-        (p.first << other.integralBits());
+      DoubleType<I> prod = ((DoubleType<I>) underlying) * other.underlying;
+      underlying = (I) (prod >> other.fractionalBits());
       return *this;
     }
     DEF_OP(/) {
-      I ah = underlying >> d;
-      std::make_unsigned_t<I> al = underlying;
-      al <<= d;
-      underlying = divOverflow(ah, al, other.underlying);
+      DoubleType<I> dividend = ((DoubleType<I>) underlying) << d;
+      underlying = (I) (dividend / other.underlying);
       return *this;
     }
     DEF_OP_BOILERPLATE(<<)
