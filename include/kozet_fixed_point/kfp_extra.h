@@ -5,7 +5,6 @@
 #include "./kfp.h"
 
 namespace kfp {
-  static constexpr int32_t TAU_TIMES_2TT28 = 0x6487ED51;
   static constexpr size_t CORDIC_ITERATIONS = 30;
   // CORDIC K constant in 2.30 format.
   static constexpr s2_30 CORDIC_K = s2_30::raw(0x26DD3B6A);
