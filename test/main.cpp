@@ -27,6 +27,7 @@ void testBasic() {
   kfp::Fixed<int32_t, 16> k = 3;
   auto m = kfp::Fixed<int32_t, 16>::raw(5835);
   kfp::Fixed<int32_t, 16> x = 2457;
+  kfp::Fixed<int64_t, 32> y = x;
   std::cout << "3 = " << k << "\n";
   std::cout << "5835/65536 = " << m << "\n";
   std::cout << k << " + " << m << " = " << (k + m) << "\n";
@@ -39,6 +40,8 @@ void testBasic() {
   std::cout << "(-m) >> 4 = " << ((-m) >> 4) << "\n";
   std::cout << "-(m >> 4) = " << -(m >> 4) << "\n";
   std::cout << x << " / " << m << " = " << (x / m) << "\n";
+  std::cout << x << " = " << x << "\n";
+  std::cout << y << " = " << y << "\n";
 }
 
 void testTrig() {

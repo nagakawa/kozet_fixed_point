@@ -55,8 +55,8 @@ The library defines some aliases for convenience:
 In order to use this library, you must have `int128_t` and `uint128_t`
 defined. With compilers that support `__int128_t` and `__uint128_t` (such as
 GCC), no further action is required. Otherwise, you must define `int128_t`
-and `uint128_t` appropriately, using either such types provided by your
-compiler or from a library.
+and `uint128_t` appropriately, using such types provided by your compiler
+or from a library.
 
 #### Constructors
 

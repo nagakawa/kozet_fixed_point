@@ -80,7 +80,8 @@ namespace kfp {
       static_assert(fractionalBits() >= other.fractionalBits(),
         "Cannot implicitly cast into a type with fewer fractional bits");
       // How much left should we shift?
-      underlying = other.underlying << (fractionalBits() - other.fractionalBits());
+      underlying = other.underlying;
+      underlying <<= (fractionalBits() - other.fractionalBits());
     }
     constexpr static F raw(I underlying) {
       F ret;
@@ -104,6 +105,17 @@ namespace kfp {
     }
     F& operator=(const I& i) {
       underlying = i << d;
+      return *this;
+    }
+    template<typename I2, size_t d2>
+    F& operator=(const Fixed<I2, d2>& other) {
+      static_assert(integralDigits() >= other.integralDigits(),
+        "Cannot implicitly cast into a type with fewer integral digits");
+      static_assert(fractionalBits() >= other.fractionalBits(),
+        "Cannot implicitly cast into a type with fewer fractional bits");
+      // How much left should we shift?
+      underlying = other.underlying;
+      underlying <<= (fractionalBits() - other.fractionalBits());
       return *this;
     }
 #define DEF_OP_BOILERPLATE(o) \
@@ -161,9 +173,15 @@ namespace kfp {
 #undef DEF_OP
 #undef DEF_OP_BOILERPLATE
 #undef DEF_OP_BOILERPLATE2
+    // Explicit conversions
+    explicit operator I() const {
+      return floor();
+    }
     // Other functions
     I floor() const {
-      return underlying >> d;
+      return (d < sizeof(I) * CHAR_BIT) ?
+        underlying >> d :
+        0;
     }
     double toDouble() const {
       return ((double) underlying) / exp2(d);
