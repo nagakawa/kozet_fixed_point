@@ -36,8 +36,8 @@ namespace kfp {
   using uint128_t = __uint128_t;
 #else
   // Use a library that provides a 128-bit int type with the usual operations
-  // and define int128_t and uint128_t to the signed/unsigned variants respectively
-  // if not done already.
+  // and define int128_t and uint128_t to the signed/unsigned variant
+  // respectively if not done already.
 #endif
   template<typename T>
   struct DTI;
@@ -268,6 +268,7 @@ namespace kfp {
     DEFINE_OPERATOR_LITERAL(s34_30)
     DEFINE_OPERATOR_LITERAL(frac32)
   }
+#undef DEFINE_OPERATOR_LITERAL
 }
 
 template<typename I, size_t d>
