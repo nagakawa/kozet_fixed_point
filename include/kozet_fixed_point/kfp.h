@@ -56,6 +56,7 @@ namespace kfp {
   template<typename I, size_t d>
   struct Fixed {
     using F = kfp::Fixed<I, d>;
+    using Underlying = I;
     I underlying;
     // Sanity checks
     // Is I an integer?
@@ -143,16 +144,25 @@ namespace kfp {
       underlying -= other.underlying;
       return *this;
     }
-    DEF_OP_BOILERPLATE2(*)
+    DEF_OP_BOILERPLATE(*)
     template<size_t d2>
     F& operator*=(const Fixed<I, d2>& other) {
       DoubleType<I> prod = ((DoubleType<I>) underlying) * other.underlying;
       underlying = (I) (prod >> other.fractionalBits());
       return *this;
     }
-    DEF_OP(/) {
+    F& operator*=(I other) {
+      underlying *= other;
+      return *this;
+    }
+    DEF_OP_BOILERPLATE(/)
+    F& operator /=(const F& other) {
       DoubleType<I> dividend = ((DoubleType<I>) underlying) << d;
       underlying = (I) (dividend / other.underlying);
+      return *this;
+    }
+    F& operator/=(I other) {
+      underlying /= other;
       return *this;
     }
     DEF_OP_BOILERPLATE(<<)
@@ -220,6 +230,44 @@ namespace kfp {
   using s2_30 = Fixed<int32_t, 30>;
   using s34_30 = Fixed<int64_t, 30>;
   using frac32 = Fixed<uint32_t, 32>;
+  // User-defined literals
+  template<typename I, size_t d>
+  constexpr Fixed<I, d> convert(const char* s) {
+    using F = Fixed<I, d>;
+    // Decimal point present?
+    const char* t = s;
+    while (*t != '\0' && *t != '.') ++t;
+    bool hasDecimal = *t == '.';
+    const char* u = s;
+    I iPart = 0;
+    while (u != t) {
+      iPart *= 10;
+      iPart += (*u) - '0';
+      ++u;
+    }
+    F res(iPart);
+    if (hasDecimal) {
+      u = t + 1;
+      F mult(1);
+      while (*u != '\0') {
+        mult /= 10;
+        res += mult * ((*u) - '0');
+        ++u;
+      }
+    }
+    return res;
+  }
+#define DEFINE_OPERATOR_LITERAL(type) \
+  constexpr type operator""_##type(const char* s, size_t) { \
+    return convert<type::Underlying, type::fractionalBits()>(s); \
+  }
+  namespace literals {
+    DEFINE_OPERATOR_LITERAL(s16_16)
+    DEFINE_OPERATOR_LITERAL(u16_16)
+    DEFINE_OPERATOR_LITERAL(s2_30)
+    DEFINE_OPERATOR_LITERAL(s34_30)
+    DEFINE_OPERATOR_LITERAL(frac32)
+  }
 }
 
 template<typename I, size_t d>

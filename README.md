@@ -78,6 +78,11 @@ Examples:
     // kfp::fixed<int16_t, 8> smallerTwo = two;
     s16_16 oneHalf = s16_16::raw(0x8000); // 0.5
 
+For the aliases, you can use the user-defined literals:
+
+    s16_16 knockoffPi = "3.141592"_s16_16;
+    frac32 x = "0.3792825"_frac32;
+
 #### Type info
 
     static size_t integralBits();   // number of integral bits

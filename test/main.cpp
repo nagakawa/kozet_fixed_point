@@ -24,10 +24,13 @@
 #include "kozet_fixed_point/kfp_extra.h"
 
 void testBasic() {
+  using namespace kfp::literals;
   kfp::Fixed<int32_t, 16> k = 3;
   auto m = kfp::Fixed<int32_t, 16>::raw(5835);
   kfp::Fixed<int32_t, 16> x = 2457;
   kfp::Fixed<int64_t, 32> y = x;
+  kfp::Fixed<int32_t, 16> z = "5.26"_s16_16;
+  kfp::Fixed<int32_t, 16> w = "735"_s16_16;
   std::cout << "3 = " << k << "\n";
   std::cout << "5835/65536 = " << m << "\n";
   std::cout << k << " + " << m << " = " << (k + m) << "\n";
@@ -40,8 +43,9 @@ void testBasic() {
   std::cout << "(-m) >> 4 = " << ((-m) >> 4) << "\n";
   std::cout << "-(m >> 4) = " << -(m >> 4) << "\n";
   std::cout << x << " / " << m << " = " << (x / m) << "\n";
-  std::cout << x << " = " << x << "\n";
-  std::cout << y << " = " << y << "\n";
+  std::cout << x << " = " << y << "\n";
+  std::cout << "w = " << w << "\n";
+  std::cout << "z = " << z << "\n";
 }
 
 void testTrig() {
