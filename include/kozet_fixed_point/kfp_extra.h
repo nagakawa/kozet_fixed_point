@@ -137,6 +137,17 @@ namespace kfp {
       r = vx * CORDIC_K;
     if (inv) t += frac32::raw(0x80000000u);
   }
+
+  template<typename I, size_t d>
+  bool isInterior(Fixed<I, d> x, Fixed<I, d> y, Fixed<I, d> r) {
+    using D = DoubleType<I>;
+    D hypot =
+      ((D) x.underlying) * x.underlying +
+      ((D) y.underlying) * y.underlying;
+    D r2 =
+      ((D) r.underlying) * r.underlying;
+    return hypot <= r2;
+  }
 }
 
 #endif // KOZET_FIXED_POINT_KFP_EXTRA_H
