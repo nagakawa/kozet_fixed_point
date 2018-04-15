@@ -126,6 +126,11 @@ Given two fixed-point values `c` and `s`, computes `r = hypot(c, s)` and
 `t = atan2(s, c)` at the same time, effectively converting from rectangular
 to polar coördinates.
 
+    bool isInterior(F x, F y, F r)
+
+Returns true if the point `(x, y)` is inside the circle centred around the
+origin with radius `r`.
+
 #### Licence
 
    Copyright 2018 AGC.
