@@ -36,7 +36,7 @@ namespace kfp {
   using uint128_t = __uint128_t;
 #else
   // Use a library that provides a 128-bit int type with the usual operations
-  // and define int128_t and uint128_t to the signed/unsigned variant
+  // and define kfp::int128_t and kfp::uint128_t to the signed/unsigned variant
   // respectively if not done already.
 #endif
   template<typename T>
@@ -76,9 +76,11 @@ namespace kfp {
     // Implicit cast from smaller type
     template<typename I2, size_t d2>
     constexpr Fixed(const Fixed<I2, d2>& other) {
-      static_assert(integralDigits() >= other.integralDigits(),
+      static_assert(
+        (std::numeric_limits<I>::digits - d) >=
+          (std::numeric_limits<I2>::digits - d2),
         "Cannot implicitly cast into a type with fewer integral digits");
-      static_assert(fractionalBits() >= other.fractionalBits(),
+      static_assert(d >= d2,
         "Cannot implicitly cast into a type with fewer fractional bits");
       // How much left should we shift?
       underlying = other.underlying;
@@ -90,13 +92,13 @@ namespace kfp {
       return ret;
     }
     // Traits
-    static constexpr size_t integralBits() {
+    static constexpr size_t integralBits() noexcept {
       return CHAR_BIT * sizeof(I) - d;
     }
-    static constexpr size_t integralDigits() {
+    static constexpr size_t integralDigits() noexcept {
       return std::numeric_limits<I>::digits - d;
     }
-    static constexpr size_t fractionalBits() {
+    static constexpr size_t fractionalBits() noexcept {
       return d;
     }
     // Operator defines
