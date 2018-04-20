@@ -72,7 +72,9 @@ namespace kfp {
     constexpr Fixed(I value, HasIntegerBits<I2, d2>* dummy = nullptr) : underlying(value << d) {}
     template<typename I2 = I, size_t d2 = d>
     constexpr Fixed(I value, HasNoIntegerBits<I2, d2>* dummy = nullptr) : underlying(0) {}
-    constexpr Fixed(const F& value) : underlying(value.underlying) {}
+    // Copy constructor not used because it makes the type
+    // not trivially constructible
+    // constexpr Fixed(const F& value) : underlying(value.underlying) {}
     // Implicit cast from smaller type
     template<typename I2, size_t d2>
     constexpr Fixed(const Fixed<I2, d2>& other) {
@@ -102,10 +104,12 @@ namespace kfp {
       return d;
     }
     // Operator defines
-    F& operator=(const F& other) {
+    // Copy assignment not used because it makes the type
+    // not trivially constructible
+    /*F& operator=(const F& other) {
       underlying = other.underlying;
       return *this;
-    }
+    }*/
     F& operator=(const I& i) {
       underlying = i << d;
       return *this;
@@ -275,6 +279,10 @@ namespace kfp {
 
 template<typename I, size_t d>
 struct std::numeric_limits<kfp::Fixed<I, d>> {
+  static constexpr double log10of2 = 0.301029995663981;
+  static constexpr int ctl10o2(int x) {
+    return (31 * x + 99) / 100;
+  }
   using F = kfp::Fixed<I, d>;
   static constexpr bool is_specialized = true;
   static constexpr bool is_signed = std::numeric_limits<I>::is_signed;
@@ -294,15 +302,15 @@ struct std::numeric_limits<kfp::Fixed<I, d>> {
   static constexpr int digits = std::numeric_limits<I>::digits;
   static constexpr int digits10 = std::numeric_limits<I>::digits10;
   static constexpr int max_digits10 =
-    (int) ceil(std::numeric_limits<I>::digits * std::log10(2) + 1);
+    ctl10o2(std::numeric_limits<I>::digits) + 1;
   static constexpr int radix = 2;
   static constexpr int min_exponent = -d + 1;
   static constexpr int max_exponent =
     std::numeric_limits<I>::digits - d;
   static constexpr int min_exponent10 =
-    (int) ((-d + 1) * std::log10(2));
+    ctl10o2(-d + 1);
   static constexpr int max_exponent10 =
-    (int) ((std::numeric_limits<I>::digits - d) * std::log10(2));
+    ctl10o2(std::numeric_limits<I>::digits - d);
   static constexpr bool traps = true;
   static constexpr bool tinyness_before = false;
   static constexpr F min() {
@@ -331,6 +339,14 @@ struct std::numeric_limits<kfp::Fixed<I, d>> {
   }
   static constexpr F denorm_min() {
     return F(0);
+  }
+};
+
+template<typename I, size_t d>
+struct std::hash<kfp::Fixed<I, d>> {
+  using F = kfp::Fixed<I, d>;
+  size_t operator()(const F& f) const {
+    return std::hash<I>()(f.underlying);
   }
 };
 
