@@ -264,18 +264,6 @@ namespace kfp {
   }
   // Relational operators
 #define DEF_RELATION(o) \
-    template<typename I, size_t d, typename I2, \
-      std::enable_if_t<std::is_integral<I2>::value, void*> dummy = nullptr> \
-    bool operator o(const Fixed<I, d>& a, I2 b) { \
-      return a.floor() o b && \
-        a.underlying o ((I) b << d); \
-    } \
-    template<typename I, size_t d, typename I2, \
-      std::enable_if_t<std::is_integral<I2>::value, void*> dummy = nullptr> \
-    bool operator o(I2 a, const Fixed<I, d>& b) { \
-      return a o b.floor() && \
-        ((I) a << d) o b.underlying; \
-    } \
     template<typename I, size_t d> \
     bool operator o(const Fixed<I, d>& a, const Fixed<I, d>& b) { \
       return a.underlying o b.underlying; \
@@ -287,6 +275,38 @@ namespace kfp {
   DEF_RELATION(>)
   DEF_RELATION(>=)
 #undef DEF_RELATION
+#define DEF_RELATION_I(o, o2) \
+    template<typename I, size_t d, typename I2, \
+      std::enable_if_t<std::is_integral<I2>::value, void*> dummy = nullptr> \
+    bool operator o(const Fixed<I, d>& a, I2 b) { \
+      return a.floor() o2 b && \
+        a.underlying o ((I) b << d); \
+    } \
+    template<typename I, size_t d, typename I2, \
+      std::enable_if_t<std::is_integral<I2>::value, void*> dummy = nullptr> \
+    bool operator o(I2 a, const Fixed<I, d>& b) { \
+      return a o2 b.floor() && \
+        ((I) a << d) o b.underlying; \
+    }
+  DEF_RELATION_I(==, ==)
+  DEF_RELATION_I(<, <=)
+  DEF_RELATION_I(>, >=)
+#undef DEF_RELATION_I
+#define DEF_RELATION_INV(o, o2) \
+    template<typename I, size_t d, typename I2, \
+      std::enable_if_t<std::is_integral<I2>::value, void*> dummy = nullptr> \
+    bool operator o(const Fixed<I, d>& a, I2 b) { \
+      return !(a o2 b); \
+    } \
+    template<typename I, size_t d, typename I2, \
+      std::enable_if_t<std::is_integral<I2>::value, void*> dummy = nullptr> \
+    bool operator o(I2 a, const Fixed<I, d>& b) { \
+      return !(a o2 b); \
+    }
+  DEF_RELATION_INV(!=, ==)
+  DEF_RELATION_INV(<=, >)
+  DEF_RELATION_INV(>=, <)
+#undef DEF_RELATION_INV
   template<
     typename I, size_t d, typename I2,
     std::enable_if_t<std::is_integral<I2>::value, void*> dummy = nullptr
