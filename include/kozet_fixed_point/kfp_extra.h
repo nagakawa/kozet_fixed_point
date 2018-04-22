@@ -148,6 +148,42 @@ namespace kfp {
       ((D) r.underlying) * r.underlying;
     return hypot <= r2;
   }
+  // Adapted from:
+  // http://www.codecodex.com/wiki/Calculate_an_integer_square_root
+  template<typename I>
+  I sqrti(I n) {
+    if (n < 0) {
+      std::cerr << "Positive n expected in kfp::sqrti";
+      abort();
+    }
+    I root = 0;
+    I rem = n;
+    I place = (I) 1 << (CHAR_BIT * sizeof(I) - 2);
+    while (place > rem)
+      place >>= 2;
+    while (place != 0) {
+      if (rem >= root + place) {
+        rem -= root + place;
+        root += place *= 2;
+      }
+      root >>= 1;
+      place >>= 2;
+    }
+    return root;
+  }
+  template<typename I, size_t d>
+  Fixed<I, d> sqrt(Fixed<DoubleTypeExact<I>, 2 * d> x) {
+    DoubleTypeExact<I> s = sqrti(x.underlying);
+    I max = std::numeric_limits<I>::max();
+    if (s >= max)
+      return Fixed<I, d>::raw(max);
+    return Fixed<I, d>::raw((I) s);
+  }
+  template<typename I, size_t d>
+  Fixed<I, d> hypot(Fixed<I, d> x, Fixed<I, d> y) {
+    auto h2 = longMultiply(x, x) + longMultiply(y, y);
+    return sqrt(h2);
+  }
 }
 
 #endif // KOZET_FIXED_POINT_KFP_EXTRA_H

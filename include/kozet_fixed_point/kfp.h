@@ -50,7 +50,19 @@ namespace kfp {
   template<> struct DTI<uint32_t> { typedef uint_fast64_t type; };
   template<> struct DTI<uint64_t> { typedef uint128_t type; };
   template<typename T>
+  struct DTIX;
+  template<> struct DTIX<int8_t> { typedef int16_t type; };
+  template<> struct DTIX<int16_t> { typedef int32_t type; };
+  template<> struct DTIX<int32_t> { typedef int64_t type; };
+  template<> struct DTIX<int64_t> { typedef int128_t type; };
+  template<> struct DTIX<uint8_t> { typedef uint16_t type; };
+  template<> struct DTIX<uint16_t> { typedef uint32_t type; };
+  template<> struct DTIX<uint32_t> { typedef uint64_t type; };
+  template<> struct DTIX<uint64_t> { typedef uint128_t type; };
+  template<typename T>
   using DoubleType = typename DTI<T>::type;
+  template<typename T>
+  using DoubleTypeExact = typename DTI<T>::type;
   // I = underlying int type
   // d = number of bits to the right of the decimal
   template<typename I, size_t d>
@@ -60,7 +72,10 @@ namespace kfp {
     I underlying;
     // Sanity checks
     // Is I an integer?
-    static_assert(std::numeric_limits<I>::is_integer,
+    static_assert(
+      std::numeric_limits<I>::is_integer ||
+      std::is_same<I, int128_t>::value ||
+      std::is_same<I, uint128_t>::value,
       "I must be an integer type");
     template<typename I2, size_t d2>
     using HasIntegerBits = std::enable_if_t<(d2 < CHAR_BIT * sizeof(I2))>;
@@ -68,15 +83,37 @@ namespace kfp {
     using HasNoIntegerBits = std::enable_if_t<(d2 >= CHAR_BIT * sizeof(I2)), int>;
     // Constructors
     constexpr Fixed() : underlying(0) {}
-    template<typename I2 = I, size_t d2 = d>
-    constexpr Fixed(I value, HasIntegerBits<I2, d2>* dummy = nullptr) : underlying(value << d) {}
-    template<typename I2 = I, size_t d2 = d>
-    constexpr Fixed(I value, HasNoIntegerBits<I2, d2>* dummy = nullptr) : underlying(0) {}
+    template<
+      typename I2 = I, size_t d2 = d,
+      HasIntegerBits<I2, d2>* dummy = nullptr>
+    constexpr Fixed(I value) :
+      underlying(value << d) {}
+    template<
+      typename I2 = I, size_t d2 = d,
+      HasNoIntegerBits<I2, d2>* dummy = nullptr>
+    constexpr Fixed(I value) :
+      underlying(0) { (void) value; }
     // Copy constructor not used because it makes the type
     // not trivially constructible
     // constexpr Fixed(const F& value) : underlying(value.underlying) {}
     // Implicit cast from smaller type
-    template<typename I2, size_t d2>
+    template<typename I2, size_t d2, typename I3, size_t d3>
+    using IsConvertible = std::enable_if_t<
+      (std::numeric_limits<I2>::digits - d2) >=
+        (std::numeric_limits<I3>::digits - d3) &&
+      d2 >= d3,
+      int
+    >;
+    template<typename I2, size_t d2, typename I3, size_t d3>
+    using IsNonConvertible = std::enable_if_t<
+      (std::numeric_limits<I2>::digits - d2) <
+        (std::numeric_limits<I3>::digits - d3) ||
+      d2 < d3
+    >;
+    template<
+      typename I2, size_t d2,
+      typename I3 = I, size_t d3 = d,
+      IsConvertible<I3, d3, I2, d2>* dummy = nullptr>
     constexpr Fixed(const Fixed<I2, d2>& other) {
       static_assert(
         (std::numeric_limits<I>::digits - d) >=
@@ -84,6 +121,15 @@ namespace kfp {
         "Cannot implicitly cast into a type with fewer integral digits");
       static_assert(d >= d2,
         "Cannot implicitly cast into a type with fewer fractional bits");
+      // How much left should we shift?
+      underlying = other.underlying;
+      underlying <<= (fractionalBits() - other.fractionalBits());
+    }
+    template<
+      typename I2, size_t d2,
+      typename I3 = I, size_t d3 = d,
+      IsNonConvertible<I3, d3, I2, d2>* dummy = nullptr>
+    explicit constexpr Fixed(const Fixed<I2, d2>& other) {
       // How much left should we shift?
       underlying = other.underlying;
       underlying <<= (fractionalBits() - other.fractionalBits());
@@ -134,7 +180,9 @@ namespace kfp {
       }
 #define DEF_OP_BOILERPLATE2(o) \
       DEF_OP_BOILERPLATE(o) \
-      F& operator o##=(const I& other) { \
+      template<typename I2, \
+        std::enable_if_t<std::is_integral<I2>::value, void*> dummy = nullptr> \
+      F& operator o##=(const I2& other) { \
         *this o##= F(other); \
         return *this; \
       }
@@ -203,17 +251,30 @@ namespace kfp {
       return ((double) underlying) / exp2(d);
     }
   };
+  template<typename I, size_t d>
+  struct DTI<Fixed<I, d>> { typedef Fixed<DoubleType<I>, 2 * d> type; };
+  template<typename I, size_t d>
+  struct DTIX<Fixed<I, d>> { typedef Fixed<DoubleTypeExact<I>, 2 * d> type; };
+  template<typename I, size_t d, size_t d2>
+  Fixed<DoubleTypeExact<I>, d + d2>
+  longMultiply(Fixed<I, d> a, Fixed<I, d2> b) {
+    DoubleTypeExact<I> p = a.underlying;
+    p *= b.underlying;
+    return Fixed<DoubleTypeExact<I>, d + d2>::raw(p);
+  }
   // Relational operators
 #define DEF_RELATION(o) \
-    template<typename I, size_t d> \
-    bool operator o(const Fixed<I, d>& a, I b) { \
-      return (b >> Fixed<I, d>::integralBits()) == 0 && \
-        a.underlying o (b << d); \
+    template<typename I, size_t d, typename I2, \
+      std::enable_if_t<std::is_integral<I2>::value, void*> dummy = nullptr> \
+    bool operator o(const Fixed<I, d>& a, I2 b) { \
+      return a.floor() o b && \
+        a.underlying o ((I) b << d); \
     } \
-    template<typename I, size_t d> \
-    bool operator o(I a, const Fixed<I, d>& b) { \
-      return (a >> Fixed<I, d>::integralBits()) == 0 && \
-        (a << d) o b.underlying; \
+    template<typename I, size_t d, typename I2, \
+      std::enable_if_t<std::is_integral<I2>::value, void*> dummy = nullptr> \
+    bool operator o(I2 a, const Fixed<I, d>& b) { \
+      return a o b.floor() && \
+        ((I) a << d) o b.underlying; \
     } \
     template<typename I, size_t d> \
     bool operator o(const Fixed<I, d>& a, const Fixed<I, d>& b) { \
@@ -226,6 +287,13 @@ namespace kfp {
   DEF_RELATION(>)
   DEF_RELATION(>=)
 #undef DEF_RELATION
+  template<
+    typename I, size_t d, typename I2,
+    std::enable_if_t<std::is_integral<I2>::value, void*> dummy = nullptr
+  >
+  kfp::Fixed<I, d> operator*(I2 n, kfp::Fixed<I, d> x) {
+    return x * n;
+  }
   // end
   template<typename I, size_t d>
   std::ostream& operator<<(std::ostream& fh, const Fixed<I, d>& x) {
