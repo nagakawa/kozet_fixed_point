@@ -123,7 +123,10 @@ namespace kfp {
         "Cannot implicitly cast into a type with fewer fractional bits");
       // How much left should we shift?
       underlying = other.underlying;
-      underlying <<= (fractionalBits() - other.fractionalBits());
+      if (fractionalBits() >= other.fractionalBits())
+        underlying <<= (fractionalBits() - other.fractionalBits());
+      else
+        underlying >>= (other.fractionalBits() - fractionalBits());
     }
     template<
       typename I2, size_t d2,
@@ -132,7 +135,10 @@ namespace kfp {
     explicit constexpr Fixed(const Fixed<I2, d2>& other) {
       // How much left should we shift?
       underlying = other.underlying;
-      underlying <<= (fractionalBits() - other.fractionalBits());
+      if (fractionalBits() >= other.fractionalBits())
+        underlying <<= (fractionalBits() - other.fractionalBits());
+      else
+        underlying >>= (other.fractionalBits() - fractionalBits());
     }
     constexpr static F raw(I underlying) {
       F ret;
@@ -168,7 +174,10 @@ namespace kfp {
         "Cannot implicitly cast into a type with fewer fractional bits");
       // How much left should we shift?
       underlying = other.underlying;
-      underlying <<= (fractionalBits() - other.fractionalBits());
+      if (fractionalBits() >= other.fractionalBits())
+        underlying <<= (fractionalBits() - other.fractionalBits());
+      else
+        underlying >>= (other.fractionalBits() - fractionalBits());
       return *this;
     }
 #define DEF_OP_BOILERPLATE(o) \
