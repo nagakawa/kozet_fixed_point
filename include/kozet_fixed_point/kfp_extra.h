@@ -151,6 +151,13 @@ namespace kfp {
   // Adapted from:
   // http://www.codecodex.com/wiki/Calculate_an_integer_square_root
   template<typename I>
+  I sqrtiFast(I n) {
+    I est = (I) sqrt((float) n);
+    while (est * est < n) ++est;
+    while (est * est > n) --est;
+    return est;
+  }
+  template<typename I>
   I sqrti(I n) {
     if (n < 0) {
       std::cerr << "Positive n expected in kfp::sqrti";
@@ -173,7 +180,7 @@ namespace kfp {
   }
   template<typename I, size_t d>
   Fixed<I, d> sqrt(Fixed<DoubleTypeExact<I>, 2 * d> x) {
-    DoubleTypeExact<I> s = sqrti(x.underlying);
+    DoubleTypeExact<I> s = sqrtiFast(x.underlying);
     I max = std::numeric_limits<I>::max();
     if (s >= max)
       return Fixed<I, d>::raw(max);
