@@ -64,6 +64,9 @@ namespace kfp {
     s2_30::raw(0x4000002A), s2_30::raw(0x4000000A), s2_30::raw(0x40000002),
   };
 
+  inline uint32_t cnegi(uint32_t x, uint32_t p) {
+      return (p & 0x8000'0000u) ? -x : x;
+  }
   // Calculates sine and cosine using CORDIC
   // (https://en.wikipedia.org/wiki/CORDIC)
   // t = angle stored in a frac32 of a turn
@@ -81,17 +84,11 @@ namespace kfp {
     for (i = 0; i < CORDIC_ITERATIONS && t != frac32(0); ++i) {
       // new vector = [1, -factor; factor, 1] old vector
       s2_30 nx, ny;
-      bool isNeg = (t.underlying & 0x8000'0000u) != 0;
-      if (!isNeg) {
-        nx = vx - (vy >> i);
-        ny = (vx >> i) + vy;
-      } else {
-        nx = vx + (vy >> i);
-        ny = -(vx >> i) + vy;
-      }
+      nx = vx - s2_30::raw(cnegi((vy.underlying >> i), t.underlying));
+      ny = vy + s2_30::raw(cnegi((vx.underlying >> i), t.underlying));
       vx = nx;
       vy = ny;
-      t += (isNeg) ? arctangentsT[i] : -arctangentsT[i];
+      t += (t.underlying & 0x8000'0000u) ? arctangentsT[i] : -arctangentsT[i];
     }
     if (i < (sizeof(intermediateKRatio) / sizeof(intermediateKRatio[0]))) {
       vx *= intermediateKRatio[i];
