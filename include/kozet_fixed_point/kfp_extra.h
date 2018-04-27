@@ -158,14 +158,16 @@ namespace kfp {
     return est;
   }
   template<typename I>
-  I sqrti(I n) {
-    if (n < 0) {
+  I sqrti(I nn) {
+    if (nn < 0) {
       std::cerr << "Positive n expected in kfp::sqrti";
       abort();
     }
-    I root = 0;
-    I rem = n;
-    I place = (I) 1 << (CHAR_BIT * sizeof(I) - 2);
+    using U = std::make_unsigned_t<I>;
+    U n = (U) nn;
+    U root = 0;
+    U rem = n;
+    U place = (U) 1 << (CHAR_BIT * sizeof(U) - 2);
     while (place > rem)
       place >>= 2;
     while (place != 0) {
