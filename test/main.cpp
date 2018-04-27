@@ -78,13 +78,13 @@ void testTrigPerformance() {
 	kfp::s2_30 c, s;
   kfp::s16_16 cf, sf, r;
   kfp::frac32 t, i;
-  kfp::frac32 sink;
+  kfp::frac32 sink = 0;
   clock_t t1 = clock();
 	do {
 		kfp::sincos(i, c, s);
     // Maybe we should add explicit casting to smaller types?
-		cf.underlying = c.underlying >> 14;
-		sf.underlying = s.underlying >> 14;
+    cf = (kfp::s16_16) c;
+    sf = (kfp::s16_16) s;
 		kfp::rectp(cf, sf, r, t);
     sink += t;
     i += kfp::frac32::raw(0x100);

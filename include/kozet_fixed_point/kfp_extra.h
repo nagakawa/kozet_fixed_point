@@ -72,7 +72,7 @@ namespace kfp {
   // Note: cosine and sine values are returned as s2_30 in order to represent both -1 and 1 correctly.
   void sincos(frac32 t, s2_30& c, s2_30& s) {
     // Check if angle (in radians) is greater than pi/2 or less than pi/2
-    bool inv = t > frac32::raw(0x40000000) && t < frac32::raw(0xC0000000u);
+    bool inv = t >= frac32::raw(0x40000000) && t < frac32::raw(0xC0000000u);
     // If so, then rotate by pi
     t += frac32::raw(0x80000000u * inv);
     s2_30 vx = CORDIC_K;
