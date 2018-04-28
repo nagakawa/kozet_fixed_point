@@ -67,6 +67,10 @@ namespace kfp {
   inline uint32_t cnegi(uint32_t x, uint32_t p) {
       return (p & 0x8000'0000u) ? -x : x;
   }
+  template<typename I>
+  inline I cnegic(I x, I p) {
+      return (p < 0) ? -x : x;
+  }
   // Calculates sine and cosine using CORDIC
   // (https://en.wikipedia.org/wiki/CORDIC)
   // t = angle stored in a frac32 of a turn
@@ -83,12 +87,12 @@ namespace kfp {
     unsigned int i;
     for (i = 0; i < CORDIC_ITERATIONS && t != frac32(0); ++i) {
       // new vector = [1, -factor; factor, 1] old vector
-      s2_30 nx, ny;
-      nx = vx - s2_30::raw(cnegi((vy.underlying >> i), t.underlying));
-      ny = vy + s2_30::raw(cnegi((vx.underlying >> i), t.underlying));
+      s2_30 nx = vx - s2_30::raw(cnegi((vy.underlying >> i), t.underlying));
+      s2_30 ny = vy + s2_30::raw(cnegi((vx.underlying >> i), t.underlying));
       vx = nx;
       vy = ny;
-      t += (t.underlying & 0x8000'0000u) ? arctangentsT[i] : -arctangentsT[i];
+      t -= frac32::raw(cnegi(arctangentsT[i].underlying, t.underlying));
+      //t += (t.underlying & 0x8000'0000u) ? arctangentsT[i] : -arctangentsT[i];
     }
     if (i < (sizeof(intermediateKRatio) / sizeof(intermediateKRatio[0]))) {
       vx *= intermediateKRatio[i];
@@ -106,6 +110,14 @@ namespace kfp {
   template<typename F>
   void rectp(F c, F s, F& r, frac32& t) {
     bool inv = c < F(0); // Left of y-axis?
+    // This function is pretty touchy, probably because it uses templates
+    // extensively.
+    // The commented lines should increase performance if they replace the
+    // lines performing similar functions, but tests with build/test have
+    // shown that this doesn't hold. Maybe because rectp is inlined into
+    // the testTrigPerformance() function?
+    // c.underlying = cnegic(c.underlying, c.underlying);
+    // s.underlying = cnegic(s.underlying, c.underlying);
     if (inv) {
       c = -c;
       s = -s;
@@ -116,18 +128,22 @@ namespace kfp {
     unsigned int i;
     for (i = 0; i < CORDIC_ITERATIONS && vy != F(0); ++i) {
       F nx, ny;
-      if (vy <= F(0)) {
+      if (vy < F(0)) {
         nx = vx - (vy >> i);
         ny = (vx >> i) + vy;
       } else {
         nx = vx + (vy >> i);
         ny = -(vx >> i) + vy;
       }
+      // nx = vx + F::raw(cnegic((vy.underlying >> i), vy.underlying));
+      // ny = vy - F::raw(cnegic((vx.underlying >> i), vy.underlying));
       vx = nx;
-      a += (vy > F(0)) ? arctangentsT[i] : -arctangentsT[i];
+      // a += frac32::raw(cnegi((int32_t) arctangentsT[i].underlying, (int32_t) vy.underlying));
+      a += (vy >= F(0)) ? arctangentsT[i] : -arctangentsT[i];
       vy = ny;
     }
     t = a;
+    // r = vx * (i < (sizeof(intermediateK) / sizeof(intermediateK[0])) ? intermediateK[i] : CORDIC_K);
     if (i < (sizeof(intermediateK) / sizeof(intermediateK[0])))
       r = vx * intermediateK[i];
     else
