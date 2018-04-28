@@ -82,7 +82,6 @@ void testTrigPerformance() {
   clock_t t1 = clock();
 	do {
 		kfp::sincos(i, c, s);
-    // Maybe we should add explicit casting to smaller types?
     cf = (kfp::s16_16) c;
     sf = (kfp::s16_16) s;
 		kfp::rectp(cf, sf, r, t);

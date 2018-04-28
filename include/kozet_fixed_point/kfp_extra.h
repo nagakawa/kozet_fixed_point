@@ -19,6 +19,9 @@
 #ifndef KOZET_FIXED_POINT_KFP_EXTRA_H
 #define KOZET_FIXED_POINT_KFP_EXTRA_H
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "./kfp.h"
 
 namespace kfp {
@@ -176,7 +179,7 @@ namespace kfp {
   template<typename I>
   I sqrti(I nn) {
     if (nn < 0) {
-      std::cerr << "Positive n expected in kfp::sqrti";
+      fprintf(stderr, "Positive n expected in kfp::sqrti\n");
       abort();
     }
     using U = std::make_unsigned_t<I>;
