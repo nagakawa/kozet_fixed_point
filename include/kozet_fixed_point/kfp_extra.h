@@ -129,18 +129,20 @@ namespace kfp {
     unsigned int i;
     for (i = 0; i < iters && vy != F(0); ++i) {
       F nx, ny;
-      if (vy < F(0)) {
+      bool inv = vy < F(0);
+      if (inv) {
         nx = vx - (vy >> i);
         ny = (vx >> i) + vy;
+        a -= arctangentsT[i];
       } else {
         nx = vx + (vy >> i);
         ny = -(vx >> i) + vy;
+        a += arctangentsT[i];
       }
       // nx = vx + F::raw(cnegic((vy.underlying >> i), vy.underlying));
       // ny = vy - F::raw(cnegic((vx.underlying >> i), vy.underlying));
-      vx = nx;
       // a += frac32::raw(cnegi((uint32_t) arctangentsT[i].underlying, (uint32_t) (int32_t) vy.underlying));
-      a += (vy >= F(0)) ? arctangentsT[i] : -arctangentsT[i];
+      vx = nx;
       vy = ny;
     }
     t = a;
