@@ -92,7 +92,6 @@ namespace kfp {
       vx = nx;
       vy = ny;
       t -= frac32::raw(cnegi(arctangentsT[i].underlying, t.underlying));
-      //t += (t.underlying & 0x8000'0000u) ? arctangentsT[i] : -arctangentsT[i];
     }
     if (i < (sizeof(intermediateKRatio) / sizeof(intermediateKRatio[0]))) {
       vx *= intermediateKRatio[i];
@@ -122,11 +121,13 @@ namespace kfp {
       c = -c;
       s = -s;
     }
+    constexpr unsigned iters = std::min(
+      CORDIC_ITERATIONS, CHAR_BIT * sizeof(typename F::Underlying));
     frac32 a = 0;
     F vx = c;
     F vy = s;
     unsigned int i;
-    for (i = 0; i < CORDIC_ITERATIONS && vy != F(0); ++i) {
+    for (i = 0; i < iters && vy != F(0); ++i) {
       F nx, ny;
       if (vy < F(0)) {
         nx = vx - (vy >> i);
@@ -138,7 +139,7 @@ namespace kfp {
       // nx = vx + F::raw(cnegic((vy.underlying >> i), vy.underlying));
       // ny = vy - F::raw(cnegic((vx.underlying >> i), vy.underlying));
       vx = nx;
-      // a += frac32::raw(cnegi((int32_t) arctangentsT[i].underlying, (int32_t) vy.underlying));
+      // a += frac32::raw(cnegi((uint32_t) arctangentsT[i].underlying, (uint32_t) (int32_t) vy.underlying));
       a += (vy >= F(0)) ? arctangentsT[i] : -arctangentsT[i];
       vy = ny;
     }
