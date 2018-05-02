@@ -15,6 +15,7 @@
 */
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <time.h>
 
 #include <iostream>
@@ -77,13 +78,12 @@ void testTrigPerformance() {
 	kfp::s2_30 c, s;
   kfp::s16_16 cf, sf, r;
   kfp::frac32 t, i;
-  kfp::frac32 sink;
+  kfp::frac32 sink = 0;
   clock_t t1 = clock();
 	do {
 		kfp::sincos(i, c, s);
-    // Maybe we should add explicit casting to smaller types?
-		cf.underlying = c.underlying >> 14;
-		sf.underlying = s.underlying >> 14;
+    cf = (kfp::s16_16) c;
+    sf = (kfp::s16_16) s;
 		kfp::rectp(cf, sf, r, t);
     sink += t;
     i += kfp::frac32::raw(0x100);
@@ -97,9 +97,36 @@ void testTrigPerformance() {
   std::cout << "(" << (elapsedSec / 0x1000000 * 1e9) << "ns per operation)\n"; 
 }
 
+void testSqrtPerformance() {
+  std::cout << "Testing sqrt performance\n";
+  std::cout << "Using " << (sizeof(int) * CHAR_BIT) << "-bit ints\n";
+  srand(time(nullptr));
+  int sink = 0;
+  clock_t t1 = clock();
+  for (size_t i = 0; i < 1000000; ++i) {
+    sink += kfp::sqrti(rand());
+  }
+  std::cout << "sink = " << sink << "\n";
+  clock_t t2 = clock();
+  clock_t elapsed = t2 - t1;
+  double elapsedSec = ((double) elapsed) / CLOCKS_PER_SEC;
+  std::cout << "sqrti: 1000000 operations take " << elapsedSec << "s\n";
+  //
+  t1 = clock();
+  for (size_t i = 0; i < 1000000; ++i) {
+    sink += kfp::sqrtiFast(rand());
+  }
+  std::cout << "sink = " << sink << "\n";
+  t2 = clock();
+  elapsed = t2 - t1;
+  elapsedSec = ((double) elapsed) / CLOCKS_PER_SEC;
+  std::cout << "sqrtiFast: 1000000 operations take " << elapsedSec << "s\n";
+}
+
 int main() {
   testBasic();
   testTrig();
   testTrigPerformance();
+  testSqrtPerformance();
   return 0;
 }

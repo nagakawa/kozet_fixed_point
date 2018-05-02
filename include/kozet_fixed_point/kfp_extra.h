@@ -19,6 +19,9 @@
 #ifndef KOZET_FIXED_POINT_KFP_EXTRA_H
 #define KOZET_FIXED_POINT_KFP_EXTRA_H
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "./kfp.h"
 
 namespace kfp {
@@ -64,15 +67,22 @@ namespace kfp {
     s2_30::raw(0x4000002A), s2_30::raw(0x4000000A), s2_30::raw(0x40000002),
   };
 
+  inline uint32_t cnegi(uint32_t x, uint32_t p) {
+      return (p & 0x8000'0000u) ? -x : x;
+  }
+  template<typename I>
+  inline I cnegic(I x, I p) {
+      return (p < 0) ? -x : x;
+  }
   // Calculates sine and cosine using CORDIC
   // (https://en.wikipedia.org/wiki/CORDIC)
   // t = angle stored in a frac32 of a turn
   // c = reference to where you want cosine to be stored
   // s = reference to where you want sine to be stored
   // Note: cosine and sine values are returned as s2_30 in order to represent both -1 and 1 correctly.
-  void sincos(frac32 t, s2_30& c, s2_30& s) {
+  inline void sincos(frac32 t, s2_30& c, s2_30& s) {
     // Check if angle (in radians) is greater than pi/2 or less than pi/2
-    bool inv = t > frac32::raw(0x40000000) && t < frac32::raw(0xC0000000u);
+    bool inv = t >= frac32::raw(0x40000000) && t < frac32::raw(0xC0000000u);
     // If so, then rotate by pi
     t += frac32::raw(0x80000000u * inv);
     s2_30 vx = CORDIC_K;
@@ -80,18 +90,11 @@ namespace kfp {
     unsigned int i;
     for (i = 0; i < CORDIC_ITERATIONS && t != frac32(0); ++i) {
       // new vector = [1, -factor; factor, 1] old vector
-      s2_30 nx, ny;
-      bool isNeg = (t.underlying & 0x8000'0000u) != 0;
-      if (!isNeg) {
-        nx = vx - (vy >> i);
-        ny = (vx >> i) + vy;
-      } else {
-        nx = vx + (vy >> i);
-        ny = -(vx >> i) + vy;
-      }
+      s2_30 nx = vx - s2_30::raw(cnegi((vy.underlying >> i), t.underlying));
+      s2_30 ny = vy + s2_30::raw(cnegi((vx.underlying >> i), t.underlying));
       vx = nx;
       vy = ny;
-      t += (isNeg) ? arctangentsT[i] : -arctangentsT[i];
+      t -= frac32::raw(cnegi(arctangentsT[i].underlying, t.underlying));
     }
     if (i < (sizeof(intermediateKRatio) / sizeof(intermediateKRatio[0]))) {
       vx *= intermediateKRatio[i];
@@ -109,28 +112,44 @@ namespace kfp {
   template<typename F>
   void rectp(F c, F s, F& r, frac32& t) {
     bool inv = c < F(0); // Left of y-axis?
+    // This function is pretty touchy, probably because it uses templates
+    // extensively.
+    // The commented lines should increase performance if they replace the
+    // lines performing similar functions, but tests with build/test have
+    // shown that this doesn't hold. Maybe because rectp is inlined into
+    // the testTrigPerformance() function?
+    // c.underlying = cnegic(c.underlying, c.underlying);
+    // s.underlying = cnegic(s.underlying, c.underlying);
     if (inv) {
       c = -c;
       s = -s;
     }
+    constexpr unsigned iters = std::min(
+      CORDIC_ITERATIONS, CHAR_BIT * sizeof(typename F::Underlying));
     frac32 a = 0;
     F vx = c;
     F vy = s;
     unsigned int i;
-    for (i = 0; i < CORDIC_ITERATIONS && vy != F(0); ++i) {
+    for (i = 0; i < iters && vy != F(0); ++i) {
       F nx, ny;
-      if (vy <= F(0)) {
+      bool inv = vy < F(0);
+      if (inv) {
         nx = vx - (vy >> i);
         ny = (vx >> i) + vy;
+        a -= arctangentsT[i];
       } else {
         nx = vx + (vy >> i);
         ny = -(vx >> i) + vy;
+        a += arctangentsT[i];
       }
+      // nx = vx + F::raw(cnegic((vy.underlying >> i), vy.underlying));
+      // ny = vy - F::raw(cnegic((vx.underlying >> i), vy.underlying));
+      // a += frac32::raw(cnegi((uint32_t) arctangentsT[i].underlying, (uint32_t) (int32_t) vy.underlying));
       vx = nx;
-      a += (vy > F(0)) ? arctangentsT[i] : -arctangentsT[i];
       vy = ny;
     }
     t = a;
+    // r = vx * (i < (sizeof(intermediateK) / sizeof(intermediateK[0])) ? intermediateK[i] : CORDIC_K);
     if (i < (sizeof(intermediateK) / sizeof(intermediateK[0])))
       r = vx * intermediateK[i];
     else
@@ -151,14 +170,23 @@ namespace kfp {
   // Adapted from:
   // http://www.codecodex.com/wiki/Calculate_an_integer_square_root
   template<typename I>
-  I sqrti(I n) {
-    if (n < 0) {
-      std::cerr << "Positive n expected in kfp::sqrti";
+  I sqrtiFast(I n) {
+    I est = (I) sqrt((float) n);
+    while (est * est < n) ++est;
+    while (est * est > n) --est;
+    return est;
+  }
+  template<typename I>
+  I sqrti(I nn) {
+    if (nn < 0) {
+      fprintf(stderr, "Positive n expected in kfp::sqrti\n");
       abort();
     }
-    I root = 0;
-    I rem = n;
-    I place = (I) 1 << (CHAR_BIT * sizeof(I) - 2);
+    using U = std::make_unsigned_t<I>;
+    U n = (U) nn;
+    U root = 0;
+    U rem = n;
+    U place = (U) 1 << (CHAR_BIT * sizeof(U) - 2);
     while (place > rem)
       place >>= 2;
     while (place != 0) {
@@ -173,7 +201,7 @@ namespace kfp {
   }
   template<typename I, size_t d>
   Fixed<I, d> sqrt(Fixed<DoubleTypeExact<I>, 2 * d> x) {
-    DoubleTypeExact<I> s = sqrti(x.underlying);
+    DoubleTypeExact<I> s = sqrtiFast(x.underlying);
     I max = std::numeric_limits<I>::max();
     if (s >= max)
       return Fixed<I, d>::raw(max);
