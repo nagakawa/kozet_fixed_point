@@ -199,6 +199,14 @@ namespace kfp {
       return *this;
     }
     DEF_OP_BOILERPLATE(*)
+    template<typename I2, size_t d2,
+      typename I3 = I, size_t d3 = d,
+      IsConvertible<I3, d3, I2, d2>* dummy = nullptr>
+    F& operator*=(const Fixed<I2, d2>& other) {
+      DoubleType<I> prod = ((DoubleType<I>) underlying) * other.underlying;
+      underlying = (I) (prod >> other.fractionalBits());
+      return *this;
+    }
     template<size_t d2>
     F& operator*=(const Fixed<I, d2>& other) {
       DoubleType<I> prod = ((DoubleType<I>) underlying) * other.underlying;
