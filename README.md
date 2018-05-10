@@ -137,6 +137,16 @@ to polar coördinates.
 Returns true if the point `(x, y)` is inside the circle centred around the
 origin with radius `r`.
 
+#### Random number support
+
+This library provides a random number distribution class for fixed-point
+numbers. Include `kozet_fixed_point/kfp_random.h` to get the class
+`kfp::UniformFixedDistribution`.
+
+    // returns a random number in [a, b)
+    UniformFixedDistribution(result_type a, result_type b);
+    UniformFixedDistribution(); // a == 0; b == 1
+
 #### Licence
 
    Copyright 2018 AGC.
