@@ -19,10 +19,12 @@
 #include <time.h>
 
 #include <iostream>
+#include <random>
 #include <vector>
 
 #include "kozet_fixed_point/kfp.h"
 #include "kozet_fixed_point/kfp_extra.h"
+#include "kozet_fixed_point/kfp_random.h"
 
 void testBasic() {
   using namespace kfp::literals;
@@ -123,10 +125,23 @@ void testSqrtPerformance() {
   std::cout << "sqrtiFast: 1000000 operations take " << elapsedSec << "s\n";
 }
 
+void testRandom() {
+  std::mt19937_64 gen;
+  gen.seed(time(nullptr));
+  kfp::UniformFixedDistribution<kfp::s16_16> dist(0, 3);
+  std::cout << "Come, o " << dist(gen) << " and " << dist(gen) << "!\n";
+  kfp::s16_16 s = 0;
+  for (size_t i = 0; i < 1000; ++i) {
+    s += dist(gen);
+  }
+  std::cout << s << " should be near 1500\n";
+}
+
 int main() {
   testBasic();
   testTrig();
   testTrigPerformance();
   testSqrtPerformance();
+  testRandom();
   return 0;
 }
