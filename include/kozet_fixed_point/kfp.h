@@ -86,12 +86,12 @@ namespace kfp {
     template<
       typename I2 = I, size_t d2 = d,
       HasIntegerBits<I2, d2>* dummy = nullptr>
-    constexpr Fixed(I value) :
+    constexpr Fixed(I value) noexcept :
       underlying(value << d) {}
     template<
       typename I2 = I, size_t d2 = d,
       HasNoIntegerBits<I2, d2>* dummy = nullptr>
-    constexpr Fixed(I value) :
+    constexpr Fixed(I value) noexcept :
       underlying(0) { (void) value; }
     // Copy constructor not used because it makes the type
     // not trivially constructible
@@ -114,7 +114,7 @@ namespace kfp {
       typename I2, size_t d2,
       typename I3 = I, size_t d3 = d,
       IsConvertible<I3, d3, I2, d2>* dummy = nullptr>
-    constexpr Fixed(const Fixed<I2, d2>& other) {
+    constexpr Fixed(const Fixed<I2, d2>& other) noexcept {
       static_assert(
         (std::numeric_limits<I>::digits - d) >=
           (std::numeric_limits<I2>::digits - d2),
@@ -132,7 +132,7 @@ namespace kfp {
       typename I2, size_t d2,
       typename I3 = I, size_t d3 = d,
       IsNonConvertible<I3, d3, I2, d2>* dummy = nullptr>
-    explicit constexpr Fixed(const Fixed<I2, d2>& other) {
+    explicit constexpr Fixed(const Fixed<I2, d2>& other) noexcept {
       // How much left should we shift?
       underlying = other.underlying;
       if (fractionalBits() >= other.fractionalBits())
@@ -140,7 +140,7 @@ namespace kfp {
       else
         underlying >>= (other.fractionalBits() - fractionalBits());
     }
-    constexpr static F raw(I underlying) {
+    constexpr static F raw(I underlying) noexcept {
       F ret;
       ret.underlying = underlying;
       return ret;
@@ -162,12 +162,12 @@ namespace kfp {
       underlying = other.underlying;
       return *this;
     }*/
-    F& operator=(const I& i) {
+    constexpr F& operator=(const I& i) noexcept {
       underlying = i << d;
       return *this;
     }
     template<typename I2, size_t d2>
-    F& operator=(const Fixed<I2, d2>& other) {
+    constexpr F& operator=(const Fixed<I2, d2>& other) noexcept {
       static_assert(integralDigits() >= other.integralDigits(),
         "Cannot implicitly cast into a type with fewer integral digits");
       static_assert(fractionalBits() >= other.fractionalBits(),
@@ -182,7 +182,7 @@ namespace kfp {
     }
 #define DEF_OP_BOILERPLATE(o) \
       template<typename X> \
-      F operator o(const X& other) const { \
+      constexpr F operator o(const X& other) const noexcept { \
         F ret = *this; \
         ret o##= other; \
         return ret; \
@@ -191,13 +191,13 @@ namespace kfp {
       DEF_OP_BOILERPLATE(o) \
       template<typename I2, \
         std::enable_if_t<std::is_integral<I2>::value, void*> dummy = nullptr> \
-      F& operator o##=(const I2& other) { \
+      constexpr F& operator o##=(const I2& other) noexcept { \
         *this o##= F(other); \
         return *this; \
       }
 #define DEF_OP(o) \
       DEF_OP_BOILERPLATE2(o) \
-      F& operator o##=(const F& other)
+      constexpr F& operator o##=(const F& other) noexcept
     // end define
     DEF_OP(+) {
       underlying += other.underlying;
@@ -211,42 +211,42 @@ namespace kfp {
     template<typename I2, size_t d2,
       typename I3 = I, size_t d3 = d,
       IsConvertible<I3, d3, I2, d2>* dummy = nullptr>
-    F& operator*=(const Fixed<I2, d2>& other) {
+    constexpr F& operator*=(const Fixed<I2, d2>& other) noexcept {
       DoubleType<I> prod = ((DoubleType<I>) underlying) * other.underlying;
       underlying = (I) (prod >> other.fractionalBits());
       return *this;
     }
     template<size_t d2>
-    F& operator*=(const Fixed<I, d2>& other) {
+    constexpr F& operator*=(const Fixed<I, d2>& other) noexcept {
       DoubleType<I> prod = ((DoubleType<I>) underlying) * other.underlying;
       underlying = (I) (prod >> other.fractionalBits());
       return *this;
     }
-    F& operator*=(I other) {
+    constexpr F& operator*=(I other) noexcept {
       underlying *= other;
       return *this;
     }
     DEF_OP_BOILERPLATE(/)
-    F& operator /=(const F& other) {
+    constexpr F& operator /=(const F& other) noexcept {
       DoubleType<I> dividend = ((DoubleType<I>) underlying) << d;
       underlying = (I) (dividend / other.underlying);
       return *this;
     }
-    F& operator/=(I other) {
+    constexpr F& operator/=(I other) noexcept {
       underlying /= other;
       return *this;
     }
     DEF_OP_BOILERPLATE(<<)
-    F& operator<<=(int shift) {
+    constexpr F& operator<<=(int shift) noexcept {
       underlying <<= shift;
       return *this;
     }
     DEF_OP_BOILERPLATE(>>)
-    F& operator>>=(int shift) {
+    constexpr F& operator>>=(int shift) noexcept {
       underlying >>= shift;
       return *this;
     }
-    F operator-() const {
+    constexpr F operator-() const noexcept {
       F ret = *this;
       ret.underlying = -ret.underlying;
       return ret;
@@ -255,16 +255,16 @@ namespace kfp {
 #undef DEF_OP_BOILERPLATE
 #undef DEF_OP_BOILERPLATE2
     // Explicit conversions
-    explicit operator I() const {
+    explicit constexpr operator I() const noexcept {
       return floor();
     }
     // Other functions
-    I floor() const {
+    constexpr I floor() const noexcept {
       return (d < sizeof(I) * CHAR_BIT) ?
         underlying >> d :
         0;
     }
-    double toDouble() const {
+    constexpr double toDouble() const noexcept {
       return ((double) underlying) / exp2(d);
     }
   };
@@ -273,8 +273,8 @@ namespace kfp {
   template<typename I, size_t d>
   struct DTIX<Fixed<I, d>> { typedef Fixed<DoubleTypeExact<I>, 2 * d> type; };
   template<typename I, size_t d, size_t d2>
-  Fixed<DoubleTypeExact<I>, d + d2>
-  longMultiply(Fixed<I, d> a, Fixed<I, d2> b) {
+  constexpr Fixed<DoubleTypeExact<I>, d + d2>
+  longMultiply(Fixed<I, d> a, Fixed<I, d2> b) noexcept {
     DoubleTypeExact<I> p = a.underlying;
     p *= b.underlying;
     return Fixed<DoubleTypeExact<I>, d + d2>::raw(p);
@@ -282,7 +282,8 @@ namespace kfp {
   // Relational operators
 #define DEF_RELATION(o) \
     template<typename I, size_t d> \
-    bool operator o(const Fixed<I, d>& a, const Fixed<I, d>& b) { \
+    constexpr bool operator o( \
+        const Fixed<I, d>& a, const Fixed<I, d>& b) noexcept { \
       return a.underlying o b.underlying; \
     }
   DEF_RELATION(==)
@@ -295,13 +296,13 @@ namespace kfp {
 #define DEF_RELATION_I(o, o2) \
     template<typename I, size_t d, typename I2, \
       std::enable_if_t<std::is_integral<I2>::value, void*> dummy = nullptr> \
-    bool operator o(const Fixed<I, d>& a, I2 b) { \
+    constexpr bool operator o(const Fixed<I, d>& a, I2 b) noexcept { \
       return a.floor() o2 b && \
         a.underlying o ((I) b << d); \
     } \
     template<typename I, size_t d, typename I2, \
       std::enable_if_t<std::is_integral<I2>::value, void*> dummy = nullptr> \
-    bool operator o(I2 a, const Fixed<I, d>& b) { \
+    constexpr bool operator o(I2 a, const Fixed<I, d>& b) noexcept { \
       return a o2 b.floor() && \
         ((I) a << d) o b.underlying; \
     }
@@ -312,12 +313,12 @@ namespace kfp {
 #define DEF_RELATION_INV(o, o2) \
     template<typename I, size_t d, typename I2, \
       std::enable_if_t<std::is_integral<I2>::value, void*> dummy = nullptr> \
-    bool operator o(const Fixed<I, d>& a, I2 b) { \
+    constexpr bool operator o(const Fixed<I, d>& a, I2 b) noexcept { \
       return !(a o2 b); \
     } \
     template<typename I, size_t d, typename I2, \
       std::enable_if_t<std::is_integral<I2>::value, void*> dummy = nullptr> \
-    bool operator o(I2 a, const Fixed<I, d>& b) { \
+    constexpr bool operator o(I2 a, const Fixed<I, d>& b) noexcept { \
       return !(a o2 b); \
     }
   DEF_RELATION_INV(!=, ==)
@@ -328,7 +329,7 @@ namespace kfp {
     typename I, size_t d, typename I2,
     std::enable_if_t<std::is_integral<I2>::value, void*> dummy = nullptr
   >
-  kfp::Fixed<I, d> operator*(I2 n, kfp::Fixed<I, d> x) {
+  constexpr kfp::Fixed<I, d> operator*(I2 n, kfp::Fixed<I, d> x) noexcept {
     return x * n;
   }
   // end
@@ -385,7 +386,7 @@ namespace kfp {
 template<typename I, size_t d>
 struct std::numeric_limits<kfp::Fixed<I, d>> {
   static constexpr double log10of2 = 0.301029995663981;
-  static constexpr int ctl10o2(int x) {
+  static constexpr int ctl10o2(int x) noexcept {
     return (31 * x + 99) / 100;
   }
   using F = kfp::Fixed<I, d>;
@@ -418,31 +419,31 @@ struct std::numeric_limits<kfp::Fixed<I, d>> {
     ctl10o2(std::numeric_limits<I>::digits - d);
   static constexpr bool traps = true;
   static constexpr bool tinyness_before = false;
-  static constexpr F min() {
+  static constexpr F min() noexcept {
     return F::raw(std::numeric_limits<I>::min());
   }
-  static constexpr F max() {
+  static constexpr F max() noexcept {
     return F::raw(std::numeric_limits<I>::max());
   }
-  static constexpr F lowest() {
+  static constexpr F lowest() noexcept {
     return F::raw(std::numeric_limits<I>::lowest());
   }
-  static constexpr F epsilon() {
+  static constexpr F epsilon() noexcept {
     return F::raw(1);
   }
-  static constexpr F round_error() {
+  static constexpr F round_error() noexcept {
     return F::raw(1 << (d - 1));
   }
-  static constexpr F infinity() {
+  static constexpr F infinity() noexcept {
     return F(0);
   }
-  static constexpr F quiet_NaN() {
+  static constexpr F quiet_NaN() noexcept {
     return F(0);
   }
-  static constexpr F signaling_NaN() {
+  static constexpr F signaling_NaN() noexcept {
     return F(0);
   }
-  static constexpr F denorm_min() {
+  static constexpr F denorm_min() noexcept {
     return F(0);
   }
 };
@@ -450,7 +451,7 @@ struct std::numeric_limits<kfp::Fixed<I, d>> {
 template<typename I, size_t d>
 struct std::hash<kfp::Fixed<I, d>> {
   using F = kfp::Fixed<I, d>;
-  size_t operator()(const F& f) const {
+  size_t operator()(const F& f) const noexcept {
     return std::hash<I>()(f.underlying);
   }
 };

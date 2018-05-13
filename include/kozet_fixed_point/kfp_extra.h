@@ -67,11 +67,11 @@ namespace kfp {
     s2_30::raw(0x4000002A), s2_30::raw(0x4000000A), s2_30::raw(0x40000002),
   };
 
-  inline uint32_t cnegi(uint32_t x, uint32_t p) {
+  constexpr inline uint32_t cnegi(uint32_t x, uint32_t p) noexcept {
       return (p & 0x8000'0000u) ? -x : x;
   }
   template<typename I>
-  inline I cnegic(I x, I p) {
+  constexpr inline I cnegic(I x, I p) noexcept {
       return (p < 0) ? -x : x;
   }
   // Calculates sine and cosine using CORDIC
@@ -80,15 +80,15 @@ namespace kfp {
   // c = reference to where you want cosine to be stored
   // s = reference to where you want sine to be stored
   // Note: cosine and sine values are returned as s2_30 in order to represent both -1 and 1 correctly.
-  inline void sincos(frac32 t, s2_30& c, s2_30& s) {
+  constexpr inline void sincos(frac32 t, s2_30& c, s2_30& s) noexcept {
     // Check if angle (in radians) is greater than pi/2 or less than pi/2
     bool inv = t >= frac32::raw(0x40000000) && t < frac32::raw(0xC0000000u);
     // If so, then rotate by pi
     t += frac32::raw(0x80000000u * inv);
     s2_30 vx = CORDIC_K;
     s2_30 vy = 0;
-    unsigned int i;
-    for (i = 0; i < CORDIC_ITERATIONS && t != frac32(0); ++i) {
+    unsigned int i = 0;
+    for (; i < CORDIC_ITERATIONS && t != frac32(0); ++i) {
       // new vector = [1, -factor; factor, 1] old vector
       s2_30 nx = vx - s2_30::raw(cnegi((vy.underlying >> i), t.underlying));
       s2_30 ny = vy + s2_30::raw(cnegi((vx.underlying >> i), t.underlying));
@@ -110,7 +110,7 @@ namespace kfp {
   // r = stores hypot(c, s)
   // t = stores atan2(s, c)
   template<typename F>
-  void rectp(F c, F s, F& r, frac32& t) {
+  constexpr void rectp(F c, F s, F& r, frac32& t) noexcept {
     bool inv = c < F(0); // Left of y-axis?
     // This function is pretty touchy, probably because it uses templates
     // extensively.
@@ -129,8 +129,8 @@ namespace kfp {
     frac32 a = 0;
     F vx = c;
     F vy = s;
-    unsigned int i;
-    for (i = 0; i < iters && vy != F(0); ++i) {
+    unsigned int i = 0;
+    for (; i < iters && vy != F(0); ++i) {
       F nx, ny;
       bool inv = vy < F(0);
       if (inv) {
@@ -158,7 +158,8 @@ namespace kfp {
   }
 
   template<typename I, size_t d>
-  bool isInterior(Fixed<I, d> x, Fixed<I, d> y, Fixed<I, d> r) {
+  constexpr bool isInterior(
+      Fixed<I, d> x, Fixed<I, d> y, Fixed<I, d> r) noexcept {
     using D = DoubleType<I>;
     D hypot =
       ((D) x.underlying) * x.underlying +
@@ -170,14 +171,14 @@ namespace kfp {
   // Adapted from:
   // http://www.codecodex.com/wiki/Calculate_an_integer_square_root
   template<typename I>
-  I sqrtiFast(I n) {
+  constexpr I sqrtiFast(I n) noexcept {
     I est = (I) sqrt((float) n);
     while (est * est < n) ++est;
     while (est * est > n) --est;
     return est;
   }
   template<typename I>
-  I sqrti(I nn) {
+  constexpr I sqrti(I nn) noexcept {
     if (nn < 0) {
       fprintf(stderr, "Positive n expected in kfp::sqrti\n");
       abort();
@@ -200,7 +201,7 @@ namespace kfp {
     return root;
   }
   template<typename I, size_t d>
-  Fixed<I, d> sqrt(Fixed<DoubleTypeExact<I>, 2 * d> x) {
+  constexpr Fixed<I, d> sqrt(Fixed<DoubleTypeExact<I>, 2 * d> x) noexcept {
     DoubleTypeExact<I> s = sqrtiFast(x.underlying);
     I max = std::numeric_limits<I>::max();
     if (s >= max)
@@ -208,7 +209,7 @@ namespace kfp {
     return Fixed<I, d>::raw((I) s);
   }
   template<typename I, size_t d>
-  Fixed<I, d> hypot(Fixed<I, d> x, Fixed<I, d> y) {
+  constexpr Fixed<I, d> hypot(Fixed<I, d> x, Fixed<I, d> y) noexcept {
     auto h2 = longMultiply(x, x) + longMultiply(y, y);
     return sqrt(h2);
   }
